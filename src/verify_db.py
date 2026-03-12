@@ -9,7 +9,7 @@ def verifyDbContent():
     dbHost = "localhost"
     dbPort = "5432"
     
-    connectionString = f"postgresql+psycopg2://{dbUser}@{dbHost}:{dbPort}/{dbName}"
+    connectionString = f"postgresql+psycopg://{dbUser}@{dbHost}:{dbPort}/{dbName}"
     
     try:
         engine = create_engine(connectionString)
