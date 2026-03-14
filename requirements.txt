@@ -4,3 +4,4 @@ yfinance
 scikit-learn
 sqlalchemy
 psycopg
+Django
