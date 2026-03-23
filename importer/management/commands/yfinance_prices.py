@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand
+from core.command import BaseCommand
 from django.db import connection as db
 import datetime as dt
 import pandas as pd
@@ -12,25 +12,32 @@ class Command(BaseCommand):
     schema = 'public'
     tickers = ['NVDA']
 
-    def __init__(self, *args, **kwargs):
 
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dbex = DbExtra(db, self.schema)
+
 
     def handle(self, *args, **options):
 
         self.stdout.write(self.style.SUCCESS(f'==> {self.help}'))
 
-        tableName = 'stockPricesNvda'
-        self.createTable(tableName)
+        self.processMonitorStart('yfinance_generation', options)
+
+        db.cursor().execute(f'CREATE SCHEMA IF NOT EXISTS {self.schema}')
 
         self.api = YfinanceApi()
 
-        for ticker in self.tickers:
-            self.stdout.write(self.style.WARNING(f'--> processing ticker: {ticker}'))
+        for i, ticker in enumerate(self.tickers):
+            tableName = f'stockPrices{ticker.capitalize()}'
+            self.createTable(tableName)
+
+            self.stdout.write(self.style.WARNING(f"--> processing ticker: {ticker} ({i + 1}/{len(self.tickers)})"))
             self.processTicker(ticker, tableName)
 
         self.stdout.write(self.style.SUCCESS('==> Done'))
+        self.processMonitorFinish()
+
 
     def processTicker(self, ticker, tableName):
 
@@ -76,7 +83,8 @@ class Command(BaseCommand):
                 if 'Adj Close' in dataFrame.columns and pd.notna(row['Adj Close']):
                     adjCloseValue = float(row['Adj Close'])
 
-                rows.append((
+                rows.append(
+                    (
                     row['Date'].date(),
                     ticker,
                     float(row['Open']),
@@ -85,9 +93,10 @@ class Command(BaseCommand):
                     float(row['Close']),
                     adjCloseValue,
                     int(row['Volume'])
-                ))
+                    )
+                )
 
-            self.dbex.batchInsert(
+            cursor = self.dbex.batchInsert(
                 tableName,
                 [
                     'market_date',
@@ -100,17 +109,24 @@ class Command(BaseCommand):
                     'volume'
                 ],
                 rows,
-                uniqueIndexColumns=['market_date', 'ticker']
+                uniqueIndexColumns=['market_date', 'ticker'],
+                ignoreConflicts=True
             )
 
-            self.stdout.write(
-                self.style.SUCCESS(f'----> inserted {len(rows)} rows for {ticker}')
-            )
+            new_rows_count = cursor.rowcount
+
+            if new_rows_count == 0:
+                self.stdout.write(self.style.NOTICE(f'----> no new data from the API for {ticker}'))
+            else:
+                self.stdout.write(self.style.SUCCESS(f'----> inserted {new_rows_count} rows for {ticker}'))
 
             startDate = endDate + dt.timedelta(days=1)
 
+
     def createTable(self, tableName):
         
+        #db.cursor().execute(f'drop table if exists {self.schema}."{tableName}"')  # DEBUG: uncomment to reset table on each run
+
         query = f'''
         CREATE TABLE IF NOT EXISTS {self.schema}."{tableName}" (
             market_date DATE NOT NULL,

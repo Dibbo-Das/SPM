@@ -79,13 +79,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'SPM',
-        'USER': '',        # Overridden by settings_local.py for each teammate
-        'PASSWORD': '',    # Overridden by settings_local.py for each teammate
+        'USER': '',
+        'PASSWORD': '',
         'HOST': 'localhost',
         'PORT': '5432',
-        'OPTIONS': {
-            'pool': True,  # enables psycopg connection pooling (psycopg v3)
-        },
     }
 }
 
