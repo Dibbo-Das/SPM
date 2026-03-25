@@ -5,3 +5,7 @@ scikit-learn
 sqlalchemy
 psycopg
 Django
+torch
+optuna
+psycopg2-binary # required by optuna
+matplotlib 
