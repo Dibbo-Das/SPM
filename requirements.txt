@@ -3,7 +3,7 @@ numpy
 yfinance
 scikit-learn
 sqlalchemy
-psycopg
+psycopg[binary]
 Django
 torch
 optuna
